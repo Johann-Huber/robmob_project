@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find minilab_simulation)/launch/minilab_simulation.launch" />
+	<node name= "joy" pkg="joy" type="joy_node" />
+	<node name= "robmob_teleop_joy" pkg="robmob_pkg" type="robmob_teleop_joy" />
+	<node name= "slam_karto" pkg="slam_karto" type="slam_karto" />
+	<node name= "rviz" pkg="rviz" type="rviz"/>
+	
+</launch>
