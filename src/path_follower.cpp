@@ -19,31 +19,7 @@
 #define PI 3.141597
 #define NAME_MAP_WIN "Map window"
 
-/* MapPos
- ******
- * Struct to manipulate map informations inside /map basis.
- */
- /*
-struct MapPos{
-	double x, y, z;
 
-	MapPos(): x(0.0), y(0.0), z(0.0)
-	{}
-	
-	MapPos(const double& X, const double& Y, const double& Z): x(X), y(Y), z(Z)
-	{}
-	
-	double norm()
-	{
-	
-		return sqrt(x*x + y*y + z*z );
-	}
-	
-	void disp(){
-		std::cout << "*** Map Pos : (" << x << "," << y << "," << z << ") m" << std::endl;
-	}
-};
-*/
 
 struct VectPosture{
 	double x, y, z;
@@ -129,82 +105,6 @@ double posErrorToPt(VectPosture posRob, MapPos pt2Reach)
 	return ( sqrt((posRob.x-pt2Reach.x)*(posRob.x-pt2Reach.x) + (posRob.y-pt2Reach.y)*(posRob.y-pt2Reach.y)) );
 }
 
-/*
-// USELESS
-// Lit dans le fichier "pathToTxt" les coordonées des points du plus court chemin dans la carte
-// Retourne un nav_msgs:Path initialisé avec les valeurs du chemin
-nav_msgs::Path readPath(std::string const pathToTxt)
-{
-	nav_msgs::Path pathMsg;
-	
-	std::ifstream f(pathToTxt, std::ifstream::in);
-
-	if(f)
-	{
-		int nbPts;
-		f >> nbPts;
-		
-		pathMsg.header.stamp = ros::Time::now();
-		pathMsg.header.frame_id = "map";
-
-		for(int i(0); i < nbPts ; ++i)
-		{
-			geometry_msgs::PoseStamped ps;
-			
-			// Header
-			ps.header.stamp = ros::Time::now();
-			ps.header.frame_id = "map";
-			
-			// Postion
-			float x, y;
-			f >> x;
-			f >> y;
-			
-			
-			ps.pose.position.x = x;
-			ps.pose.position.y = y;
-			ps.pose.position.z = 0;
-			
-			pathMsg.poses.push_back( ps );
-		}
-		
-	}
-	else{
-		std::cout << "erreur à l'ouverture" << std::endl;
-	}
-	
-	return pathMsg;
-}
-
-
-
-*/
-/*
-// USELESS
-std::vector<MapPos> defineTrajectory(std::string const pathToTxt)
-{
-	// TODO: même chose mais tableau de mappoint en param
-	// Récupération du chemin
-	nav_msgs::Path pathMsg = readPath(pathToTxt);
-		
-	// Récupération des points de la carte
-		
-	std::vector<MapPos> vPosPts; // <- points de la carte à atteindre
-
-	for(size_t ind(0); ind < pathMsg.poses.size() ; ++ind)
-	{
-		vPosPts.push_back(MapPos(pathMsg.poses[ind].pose.position.x, 
-									 	 pathMsg.poses[ind].pose.position.y, 
-										 pathMsg.poses[ind].pose.position.z));
-	}
-
-	// Interpolation de la trajectoire : points intermédiaires 
-	std::vector<MapPos> vPosInt = interpolationTrajectory(vPosPts);
-
-	return vPosInt;
-}
-*/
-
 
 geometry_msgs::PointStamped stampedNextPoint(MapPos mp)
 {
@@ -220,6 +120,33 @@ geometry_msgs::PointStamped stampedNextPoint(MapPos mp)
 	return rvizPt2Reach;
 }
 
+
+
+nav_msgs::Path setPath(std::vector<MapPos> vPosInt)
+{
+	nav_msgs::Path pathMsg;
+	
+	pathMsg.header.stamp = ros::Time::now();
+	pathMsg.header.frame_id = "map";
+
+	for(size_t ind(0); ind<vPosInt.size() ; ++ind)
+	{
+		geometry_msgs::PoseStamped ps;
+			
+		// Header
+		ps.header.stamp = ros::Time::now();
+		ps.header.frame_id = "map";
+		
+		// Postion
+		ps.pose.position.x = vPosInt[ind].x;
+		ps.pose.position.y = vPosInt[ind].y;
+		ps.pose.position.z = 0;
+		
+		pathMsg.poses.push_back( ps );
+	}
+	
+	return pathMsg;
+}
 
 
 
@@ -245,7 +172,7 @@ int main(int argc, char **argv)
 	Map mapSim(mapListner, NAME_MAP_WIN);
 
 
-	// **************************** Find shortest path ****************************
+	// **************************** Find & display path ****************************
 	
 	// Create map tree
 	MapTree mapTree(mapSim);
@@ -253,18 +180,22 @@ int main(int argc, char **argv)
 	// Display map
 	//mapSim.drawMapSrcDest(src, dest);
 
-	// Compute :
+	// Compute shortest path:
 	Pos src(mapSim.getPosRobot()), dest(mapSim.getPosTarget());
 	std::vector<Pos> sp = mapTree.computeShorestPath(src, dest); // pxl
 
 	// Display res :
-	//mapSim.drawMapGraphPath(mapTree.getVertices(), mapTree.getGraph(), sp); // with the graph
 	//mapSim.drawMapShortestPath(sp); // without the graph
 
 	// Convert in meter
 	std::vector<MapPos> outputPath =  mapSim.convertOutputPath(sp);
 	
-
+   // Compute the trajectory interpolation
+	std::vector<MapPos> vPosInt = interpolationTrajectory(outputPath);
+	
+	// Set the gazebo path
+	nav_msgs::Path gazeboPath = setPath(vPosInt);
+	
 
 	// **************************** Robot Control ****************************
 	
@@ -273,17 +204,19 @@ int main(int argc, char **argv)
 	ros::Publisher cmd_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 10); // pour déplacer le robot
 
 	tf::TransformListener listener;
-
-   // Compute the trajectory interpolation
-	std::vector<MapPos> vPosInt = interpolationTrajectory(outputPath);
+	
 	
 	int iPt2Reach(0); // indice point à atteindre
 	double lastErrAngle(0);
 
+	ros::Publisher pathPub = n.advertise<nav_msgs::Path>("/shortest_path", 10);
 
 	ros::Rate rate(30.0); // frequence de rafraichissement
 	while (n.ok())
 	{
+		// Affichage du path
+		pathPub.publish(gazeboPath); //displayPath(vPosInt); 
+	
 		// Lecture posture robot
 		tf::StampedTransform transform; 
 	
