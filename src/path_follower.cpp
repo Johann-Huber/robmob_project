@@ -44,7 +44,7 @@ struct MapPos{
 	}
 };
 */
-/*
+
 struct VectPosture{
 	double x, y, z;
 	double roll, pitch, yaw;
@@ -68,29 +68,20 @@ struct VectPosture{
 };
  
 
-*/
+
 /* 
  * fonction d'interpolation
  * Param : les points de la traj
  * retourn : les points de la trajectoire interpolée
  */
- /*
+ 
 std::vector<MapPos> interpolationTrajectory(std::vector<MapPos> vPosPts)
 {
-	// mise en ordre croissant du vector de pos
-	std::vector<MapPos> vPosPtsSorted;
-	for(size_t ind(0) ; ind < vPosPts.size() ; ++ind)
-	{
-		vPosPtsSorted.push_back(vPosPts[vPosPts.size() - 1 - ind]);
-	}
-
-
-
 	std::vector<MapPos> vPosInterpol;
 	
 	// ajout du premier point
-	if (vPosPtsSorted.size() > 0)
-			vPosInterpol.push_back(vPosPtsSorted[0]);
+	if (vPosPts.size() > 0)
+			vPosInterpol.push_back(vPosPts[0]);
 	else 
 	{	
 		std::cout << "(WARNING) Empty list of map pos (in path_follower::interpolationTrajectory)" << std::endl;
@@ -98,13 +89,13 @@ std::vector<MapPos> interpolationTrajectory(std::vector<MapPos> vPosPts)
 	}
 	
 	// pour chaque point de la carte
-	for(size_t iPtMap(1) ; iPtMap < vPosPtsSorted.size() ; ++iPtMap) // entre n et n-1 : début = 1
+	for(size_t iPtMap(1) ; iPtMap < vPosPts.size() ; ++iPtMap) // entre n et n-1 : début = 1
 	{
 		
-		double xlast = vPosPtsSorted[iPtMap-1].x;
-		double ylast = vPosPtsSorted[iPtMap-1].y;
-		double x = vPosPtsSorted[iPtMap].x;
-		double y = vPosPtsSorted[iPtMap].y;
+		double xlast = vPosPts[iPtMap-1].x;
+		double ylast = vPosPts[iPtMap-1].y;
+		double x = vPosPts[iPtMap].x;
+		double y = vPosPts[iPtMap].y;
 	
 
 		// sampling
@@ -120,11 +111,11 @@ std::vector<MapPos> interpolationTrajectory(std::vector<MapPos> vPosPts)
 			dx += (x - xlast)/(nbPtInterpol+1);
 			dy += (y - ylast)/(nbPtInterpol+1);
 			
-			vPosInterpol.push_back(MapPos(xlast+dx , ylast+dy ,0));
+			vPosInterpol.push_back(MapPos(xlast+dx , ylast+dy));
 			
 		}
 	
-		vPosInterpol.push_back(vPosPtsSorted[iPtMap]);
+		vPosInterpol.push_back(vPosPts[iPtMap]);
 	}
 	
 	
@@ -138,7 +129,8 @@ double posErrorToPt(VectPosture posRob, MapPos pt2Reach)
 	return ( sqrt((posRob.x-pt2Reach.x)*(posRob.x-pt2Reach.x) + (posRob.y-pt2Reach.y)*(posRob.y-pt2Reach.y)) );
 }
 
-
+/*
+// USELESS
 // Lit dans le fichier "pathToTxt" les coordonées des points du plus court chemin dans la carte
 // Retourne un nav_msgs:Path initialisé avec les valeurs du chemin
 nav_msgs::Path readPath(std::string const pathToTxt)
@@ -188,8 +180,10 @@ nav_msgs::Path readPath(std::string const pathToTxt)
 
 */
 /*
+// USELESS
 std::vector<MapPos> defineTrajectory(std::string const pathToTxt)
 {
+	// TODO: même chose mais tableau de mappoint en param
 	// Récupération du chemin
 	nav_msgs::Path pathMsg = readPath(pathToTxt);
 		
@@ -209,7 +203,7 @@ std::vector<MapPos> defineTrajectory(std::string const pathToTxt)
 
 	return vPosInt;
 }
-
+*/
 
 
 geometry_msgs::PointStamped stampedNextPoint(MapPos mp)
@@ -221,12 +215,12 @@ geometry_msgs::PointStamped stampedNextPoint(MapPos mp)
 		
 	rvizPt2Reach.point.x = mp.x;
 	rvizPt2Reach.point.y = mp.y;
-	rvizPt2Reach.point.z = mp.z;
+	rvizPt2Reach.point.z = 0.0;
 
 	return rvizPt2Reach;
 }
 
-*/
+
 
 
 /****************************************************************
@@ -240,58 +234,48 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "robmob_path_follower");
 	ros::NodeHandle n;
 
+
+	// **************************** Map initialization ****************************
+	
 	// Set the map
 	MapListener mapListner(n);
-
 	mapListner.listen(n);
-	mapListner.showMap();
-	mapListner.dispData();
-
 
 	// Create map
 	Map mapSim(mapListner, NAME_MAP_WIN);
-std::cout << "1" << std::endl;
+
+
+	// **************************** Find shortest path ****************************
+	
 	// Create map tree
 	MapTree mapTree(mapSim);
-std::cout << "2" << std::endl;
-	// Test pos for map simu
-	Pos src(mapSim.getPosRobot()), dest(mapSim.getPosTarget());
-	
-	src.disp();
-	dest.disp();
-	
-std::cout << "3" << std::endl;
-	/********************************************** ONE SHOT PROCEDURE  **********************************************/
-	
-	// Display map	
-	mapSim.drawMapSrcDest(src, dest);
-std::cout << "4" << std::endl;
+
+	// Display map
+	//mapSim.drawMapSrcDest(src, dest);
+
 	// Compute :
+	Pos src(mapSim.getPosRobot()), dest(mapSim.getPosTarget());
 	std::vector<Pos> sp = mapTree.computeShorestPath(src, dest); // pxl
-std::cout << "5" << std::endl;
+
 	// Display res :
 	//mapSim.drawMapGraphPath(mapTree.getVertices(), mapTree.getGraph(), sp); // with the graph
-	mapSim.drawMapShortestPath(sp); // without the graph
-std::cout << "6" << std::endl;
+	//mapSim.drawMapShortestPath(sp); // without the graph
+
 	// Convert in meter
 	std::vector<MapPos> outputPath =  mapSim.convertOutputPath(sp);
-
-	// Export output path	
-	//mapSim.writeOutputPath(TXT_OUTPUT_PATH);
+	
 
 
-//////////////////////////////////////////////////////////////////////
+	// **************************** Robot Control ****************************
+	
 
-
-
-/*
 	ros::Publisher ptPub = n.advertise<geometry_msgs::PointStamped>("/point_to_reach", 10); // debug : affichage point à atteindre
 	ros::Publisher cmd_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 10); // pour déplacer le robot
 
 	tf::TransformListener listener;
 
-   // Read path and compute the trajectory interpolation
-	std::vector<MapPos> vPosInt = defineTrajectory("/home/johann/programs/prm_path_finding/outputPath.txt");
+   // Compute the trajectory interpolation
+	std::vector<MapPos> vPosInt = interpolationTrajectory(outputPath);
 	
 	int iPt2Reach(0); // indice point à atteindre
 	double lastErrAngle(0);
@@ -330,20 +314,14 @@ std::cout << "6" << std::endl;
 
 
 		// Calcul du vecteur cible : entre le robot et le prochain point à atteindre :
-		MapPos vectToReach( vPosInt[iPt2Reach].x - vPosRob.x, vPosInt[iPt2Reach].y - vPosRob.y , 0);
+		MapPos vectToReach( vPosInt[iPt2Reach].x - vPosRob.x, vPosInt[iPt2Reach].y - vPosRob.y );
 
 		// Calcul angle vecteur cible		
-		
 		double angle2Reach = std::acos( (vectToReach.x)*1.0/vectToReach.norm() ); //angle orienté v2reach,x0
-		if( vectToReach.y < 0  ) // if sin < 0
-		{
-			//std::cout << "PASSERA PAS" << std::cout;
+		if( vectToReach.y < 0  ) // produit vectoriel < 0 -> sin negatif
 			angle2Reach= -angle2Reach;
-		}
 		
-		//double angle2Reach = std::atan2( 1.0/vectToReach.norm(), (vectToReach.x)*1.0/vectToReach.norm() );				
-				 	
-	
+
 	 	// Calcul erreurs
 	 	double errAngle = angle2Reach - vPosRob.yaw ;
 	 	if (errAngle > PI )
@@ -377,7 +355,7 @@ std::cout << "6" << std::endl;
 		lastErrAngle = errAngle;
       rate.sleep(); // gère le rafraîchissement
   }
-*/
+
   return 0;
 }
 

@@ -189,7 +189,7 @@ std::vector<Pos> MapTree::getShortestPath()
 			int indTest = G[ind][indPrev].first;
 			if(w != 0) // avoid itself
 			{
-				if(D[ind] - w == D[indTest]) // get index which correspond to the optimal previous node for shortest path
+				if(D[ind] - w == D[indTest]) // get index corresponding to the optimal previous node for shortest path
 				{
 					optInd = indTest;
 					break;
@@ -201,8 +201,15 @@ std::vector<Pos> MapTree::getShortestPath()
 		ind = optInd; // iterate
 		
 	}
-
-	return res;
+	
+	// reverse array : start : 0 -> end : size()-1
+	std::vector<Pos> reversedRes;
+	for(size_t ind(0) ; ind < res.size() ; ++ind)
+		reversedRes.push_back(res[res.size() - 1 - ind]);
+	
+	
+	
+	return reversedRes;
 }
 
 

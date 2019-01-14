@@ -20,8 +20,8 @@ Map::Map(MapListener& mapListner, std::string const windowName )
 	_mapInfo = MapInfo(mapListner.getMapInfo());
   	_posRobot = convertPosM2P(mapListner.getMapPosRobot());
   	_posTarget = convertPosM2P(mapListner.getMapPosTarget());
-	std::cout << "pos robot : " << _posRobot.i << "," << _posRobot.j << std::endl
-				<< "pos target : " << _posTarget.i << "," << _posTarget.j << std::endl;
+	//std::cout << "pos robot : " << _posRobot.i << "," << _posRobot.j << std::endl
+		//		<< "pos target : " << _posTarget.i << "," << _posTarget.j << std::endl;
 	
 	
 	// Erosion
@@ -68,13 +68,13 @@ bool Map::initMapInfo(std::string const infoPath)
 	
 	f.close();
 	
-	std::cout << "Pos robot : x = " << mapPosRob.x << " y = " << mapPosRob.y << std::endl;
-	std::cout << "res = " << res << " x0 = " << xO << " y0 = " << yO << std::endl; // debug
+	//std::cout << "Pos robot : x = " << mapPosRob.x << " y = " << mapPosRob.y << std::endl;
+	//std::cout << "res = " << res << " x0 = " << xO << " y0 = " << yO << std::endl; // debug
 	
 	
 	_mapInfo = MapInfo(res, xO, yO);
   	_posRobot = convertPosM2P(mapPosRob);
-  	std::cout << "Pos robot : i = " << _posRobot.i << " j = " << _posRobot.j << std::endl;
+  	//std::cout << "Pos robot : i = " << _posRobot.i << " j = " << _posRobot.j << std::endl;
   	
 	return true;
 }

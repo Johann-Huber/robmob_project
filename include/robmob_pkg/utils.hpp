@@ -70,6 +70,12 @@ struct MapPos{
 	MapPos(const float& X, const float& Y): x(X), y(Y)
 	{}
 	
+	double norm()
+	{
+	
+		return sqrt(x*x + y*y);
+	}
+	
 	void disp(){
 		std::cout << "*** Map Pos : (" << x << "," << y << ") m" << std::endl;
 	}
