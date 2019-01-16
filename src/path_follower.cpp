@@ -20,6 +20,7 @@
 #define PI 3.141597
 #define NAME_MAP_WIN "Map window"
 
+//#define DEBUG_PRINT
 
 
 struct VectPosture{
@@ -88,15 +89,20 @@ std::vector<MapPos> interpolationTrajectory(std::vector<MapPos> vPosPts)
 			dx += (x - xlast)/(nbPtInterpol+1);
 			dy += (y - ylast)/(nbPtInterpol+1);
 			
-			if (it == 0)
+			if (it == 0) // more point near the beginning
 				vPosInterpol.push_back(MapPos(xlast+((x - xlast)/(nbPtInterpol+1)/2) , 
 														ylast+((y - ylast)/(nbPtInterpol+1)/2)));
 			
+			if(nbPtInterpol >= 3) // long distances -> less points
+			{
+				if(it%2 !=0)
+					vPosInterpol.push_back(MapPos(xlast+dx , ylast+dy));
+			}
+			else{
+				vPosInterpol.push_back(MapPos(xlast+dx , ylast+dy));
+			}
 			
-			vPosInterpol.push_back(MapPos(xlast+dx , ylast+dy));
-			
-			
-			if (it == nbPtInterpol-1)
+			if (it == nbPtInterpol-1) // more point near the end
 				vPosInterpol.push_back(MapPos(xlast+dx+ ((x - xlast)/(nbPtInterpol+1)/2) , 
 														ylast+dy+ ((y - ylast)/(nbPtInterpol+1)/2)));
 		}
@@ -223,6 +229,7 @@ int main(int argc, char **argv)
 	ros::Publisher pathPub = n.advertise<nav_msgs::Path>("/shortest_path", 10);
 
 	ros::Rate rate(30.0); // frequence de rafraichissement
+	std::cout << "Path following..." << std::endl;
 	while (n.ok())
 	{
 		// Affichage du path
@@ -248,14 +255,16 @@ int main(int argc, char **argv)
 		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD && iPt2Reach < (vPosInt.size()-1)) 
 														// si on est proche du point à atteindre, et qu'on est pas au dernier point
 		{
-			std::cout << "------------------------------------Passage du point " << iPt2Reach << std::endl;
+			#ifdef DEBUG_PRINT
+			 std::cout << "------------------------------------Passage du point " << iPt2Reach << std::endl;
+			#endif
 			iPt2Reach++;
 		}
 
 		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD_GOAL && iPt2Reach == (vPosInt.size()-1) && !isGoalReached)
 		{
 			isGoalReached = true;
-			std::cout << "------------------------------------Fin de parcours------------------------------------" << std::endl;
+			std::cout << "Target reached." << std::endl;
 		}
 
 		// Affichage du point dans Rviz
@@ -313,9 +322,11 @@ int main(int argc, char **argv)
 			twist.linear.x = cmdv;
 			twist.angular.z = kpw*errAngle + kdw*(errAngle - lastErrAngle);	
 			
-			std::cout << "Angles : angle2Reach = " << angle2Reach << ", yaw = " << vPosRob.yaw << ", errAngle = " << errAngle << std::endl;
+			#ifdef DEBUG_PRINT
+			 std::cout << "Angles : angle2Reach = " << angle2Reach << ", yaw = " << vPosRob.yaw << ", errAngle = " << errAngle << std::endl;
 			std::cout << "Pos : errPos = " << errPos << std::endl;
 			std::cout << "Cmd : v = " << twist.linear.x << ", w = " << twist.angular.z  << std::endl;
+			#endif
 		}
 		
 		cmd_pub.publish(twist);
@@ -323,8 +334,11 @@ int main(int argc, char **argv)
 		lastErrAngle = errAngle;
       rate.sleep(); // gère le rafraîchissement
       
-      if(endCpt == 100)
+      if(endCpt == 20)
+      {
+      	std::cout << "Ending ..." << std::endl;
       	return 0;
+      }
   }
 
   return 0;

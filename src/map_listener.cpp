@@ -51,9 +51,13 @@ bool MapListener::listen(ros::NodeHandle& n)
 		boost::shared_ptr<geometry_msgs::PointStamped const> sharedPtr;
 		geometry_msgs::PointStamped ps;
 
+		std::cout << "Please select the target point on rviz" << std::endl;
 		sharedPtr = ros::topic::waitForMessage<geometry_msgs::PointStamped>("/clicked_point", n);
   	  	if (sharedPtr != NULL)
+  	  	{
+  	  		std::cout << "Target point selected." << std::endl;
       	ps = *sharedPtr;
+    	}
     	else
          ROS_INFO("No message received");
 		
