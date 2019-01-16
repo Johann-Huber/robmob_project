@@ -69,8 +69,7 @@ bool Map::initMapInfo(std::string const infoPath)
 	f.close();
 	
 	//std::cout << "Pos robot : x = " << mapPosRob.x << " y = " << mapPosRob.y << std::endl;
-	//std::cout << "res = " << res << " x0 = " << xO << " y0 = " << yO << std::endl; // debug
-	
+	//std::cout << "res = " << res << " x0 = " << xO << " y0 = " << yO << std::endl; // debug	
 	
 	_mapInfo = MapInfo(res, xO, yO);
   	_posRobot = convertPosM2P(mapPosRob);

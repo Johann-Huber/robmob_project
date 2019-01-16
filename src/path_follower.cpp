@@ -13,8 +13,9 @@
 #include "robmob_pkg/map_tree.hpp"
 #include "robmob_pkg/utils.hpp"
 
-#define ROBOT_SPEED 1
+#define ROBOT_SPEED_MAX 3
 #define THRESHOLD 0.7 // seuil
+#define THRESHOLD_GOAL 0.2
 #define INTERPOL_SAMPLE 0.8 // Pas pour l'interpolation
 #define PI 3.141597
 #define NAME_MAP_WIN "Map window"
@@ -87,8 +88,17 @@ std::vector<MapPos> interpolationTrajectory(std::vector<MapPos> vPosPts)
 			dx += (x - xlast)/(nbPtInterpol+1);
 			dy += (y - ylast)/(nbPtInterpol+1);
 			
+			if (it == 0)
+				vPosInterpol.push_back(MapPos(xlast+((x - xlast)/(nbPtInterpol+1)/2) , 
+														ylast+((y - ylast)/(nbPtInterpol+1)/2)));
+			
+			
 			vPosInterpol.push_back(MapPos(xlast+dx , ylast+dy));
 			
+			
+			if (it == nbPtInterpol-1)
+				vPosInterpol.push_back(MapPos(xlast+dx+ ((x - xlast)/(nbPtInterpol+1)/2) , 
+														ylast+dy+ ((y - ylast)/(nbPtInterpol+1)/2)));
 		}
 	
 		vPosInterpol.push_back(vPosPts[iPtMap]);
@@ -205,7 +215,8 @@ int main(int argc, char **argv)
 
 	tf::TransformListener listener;
 	
-	
+	bool isGoalReached(false);
+	int endCpt(0);
 	int iPt2Reach(0); // indice point à atteindre
 	double lastErrAngle(0);
 
@@ -234,14 +245,19 @@ int main(int argc, char **argv)
 
 
 		// Test passage au point suivant
-		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD && iPt2Reach != (vPosInt.size()-1)) 
+		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD && iPt2Reach < (vPosInt.size()-1)) 
 														// si on est proche du point à atteindre, et qu'on est pas au dernier point
 		{
 			std::cout << "------------------------------------Passage du point " << iPt2Reach << std::endl;
 			iPt2Reach++;
 		}
-		
-		
+
+		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD_GOAL && iPt2Reach == (vPosInt.size()-1) && !isGoalReached)
+		{
+			isGoalReached = true;
+			std::cout << "------------------------------------Fin de parcours------------------------------------" << std::endl;
+		}
+
 		// Affichage du point dans Rviz
 		ptPub.publish(stampedNextPoint(vPosInt[iPt2Reach]));
 
@@ -259,34 +275,56 @@ int main(int argc, char **argv)
 	 	double errAngle = angle2Reach - vPosRob.yaw ;
 	 	if (errAngle > PI )
 	 	{ 
-	 		std::cout << "TOO HIGH : err (avant) = " << errAngle << " err angle après : " << errAngle -2.0*PI << std::endl;
+	 		//std::cout << "TOO HIGH : err (avant) = " << errAngle << " err angle après : " << errAngle -2.0*PI << std::endl;
 	 		errAngle -= 2.0*PI;
 	 	}
 	 	if (errAngle < -PI )
 	 	{
-	 		std::cout << "TOO LOW : err (avant) = " << errAngle << " err angle après : " << errAngle + 2.0*PI << std::endl;
+	 		//std::cout << "TOO LOW : err (avant) = " << errAngle << " err angle après : " << errAngle + 2.0*PI << std::endl;
 	 		errAngle += 2.0*PI;
 	   }
-		std::cout << "Angles : angle2Reach = " << angle2Reach << ", yaw = " << vPosRob.yaw << ", errAngle = " << errAngle << std::endl;
-
 		double errPos = vectToReach.norm();
-		//std::cout << "Pos : errPos = " << errPos << std::endl;
+		
 		
 		
 		// Commande robot
-		int kpv=4;
-		int kpw=5, kdw=1; //d indispensable pour le robot réel
+		/*
+		float kpv=0.5;
+		float kpw=1, kdw=0; //d indispensable pour le robot réel
+		*/
 		
 		geometry_msgs::Twist twist;
-		twist.linear.x = kpv*errPos;
-		twist.angular.z = kpw*errAngle + kdw*(errAngle - lastErrAngle);
 		
-		std::cout << "Cmd : v = " << twist.linear.x << ", w = " << twist.angular.z  << std::endl;
+		if(isGoalReached) // fin de parcours
+		{
+			twist.linear.x = 0;
+			twist.angular.z = 0;
+			endCpt++;
+		}
+		else
+		{
+			float kpv=3;
+			float kpw=5, kdw=2;
+			
 
+			float cmdv = kpv*errPos;
+			if ( cmdv > ROBOT_SPEED_MAX) cmdv = ROBOT_SPEED_MAX;
+					
+			twist.linear.x = cmdv;
+			twist.angular.z = kpw*errAngle + kdw*(errAngle - lastErrAngle);	
+			
+			std::cout << "Angles : angle2Reach = " << angle2Reach << ", yaw = " << vPosRob.yaw << ", errAngle = " << errAngle << std::endl;
+			std::cout << "Pos : errPos = " << errPos << std::endl;
+			std::cout << "Cmd : v = " << twist.linear.x << ", w = " << twist.angular.z  << std::endl;
+		}
+		
 		cmd_pub.publish(twist);
 		
 		lastErrAngle = errAngle;
       rate.sleep(); // gère le rafraîchissement
+      
+      if(endCpt == 100)
+      	return 0;
   }
 
   return 0;
