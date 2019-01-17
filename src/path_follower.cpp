@@ -13,7 +13,7 @@
 #include "robmob_pkg/map_tree.hpp"
 #include "robmob_pkg/utils.hpp"
 
-#define ROBOT_SPEED_MAX 3
+#define ROBOT_SPEED_MAX 0.4
 #define THRESHOLD 0.7 // seuil
 #define THRESHOLD_GOAL 0.2
 #define INTERPOL_SAMPLE 0.8 // Pas pour l'interpolation
@@ -312,8 +312,8 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			float kpv=3;
-			float kpw=5, kdw=2;
+			float kpv=0.5;
+			float kpw=0.7, kdw=0.2;
 			
 
 			float cmdv = kpv*errPos;
@@ -334,7 +334,7 @@ int main(int argc, char **argv)
 		lastErrAngle = errAngle;
       rate.sleep(); // gère le rafraîchissement
       
-      if(endCpt == 20)
+      if(endCpt == 200)
       {
       	std::cout << "Ending ..." << std::endl;
       	return 0;

@@ -34,8 +34,8 @@ void teleopCallback(const sensor_msgs::Joy::ConstPtr& joy)
 {
 	geometry_msgs::Twist twist;
 
-	twist.linear.x = joy->axes[1]*7;
-	twist.angular.z = joy->axes[0]*4;
+	twist.linear.x = joy->axes[1]*0.5;
+	twist.angular.z = joy->axes[0]*0.5;
 
 	cmd_pub.publish(twist);
 }
