@@ -6,8 +6,17 @@ MapListener::MapListener(ros::NodeHandle& n)
 {
 	_client = n.serviceClient<nav_msgs::GetMap>("/dynamic_map");
 	_isInit = false;
+	_isThereTarget = false;
+	_subTargetPoint = n.subscribe<geometry_msgs::PointStamped>("/clicked_point", 10, &MapListener::targetPointCallback, this);
 }
 
+
+void MapListener::targetPointCallback(const geometry_msgs::PointStamped::ConstPtr& target)
+{
+	std::cout << "Target point selected." << std::endl;
+	_mpTarget = MapPos(target->point.x,target->point.y);
+	_isThereTarget = true;
+}
 
 
 bool MapListener::listen(ros::NodeHandle& n)
@@ -53,15 +62,12 @@ bool MapListener::listen(ros::NodeHandle& n)
 
 		std::cout << "Please select the target point on rviz" << std::endl;
 		sharedPtr = ros::topic::waitForMessage<geometry_msgs::PointStamped>("/clicked_point", n);
-  	  	if (sharedPtr != NULL)
-  	  	{
-  	  		std::cout << "Target point selected." << std::endl;
-      	ps = *sharedPtr;
-    	}
-    	else
-         ROS_INFO("No message received");
-		
-		_mpTarget = MapPos(ps.point.x,ps.point.y);
+
+
+		while (!_isThereTarget)
+		{
+			ros::spinOnce();
+		}
 		
 		
 		// Initialisation done

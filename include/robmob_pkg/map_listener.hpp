@@ -40,6 +40,7 @@ public:
 	MapPos getMapPosTarget(){ return _mpTarget; }
 	bool isInit(){ return _isInit; }
 	
+	void targetPointCallback(const geometry_msgs::PointStamped::ConstPtr& target);
 	
 private:
 	cv::Mat _imgOut;
@@ -48,13 +49,15 @@ private:
 	MapPos _mpTarget;
 	
 	bool _isInit;
-
+	bool _isThereTarget;
+	
 	// For map :
 	ros::ServiceClient _client;
 	nav_msgs::GetMap _srv;
 	
 	// For robot position :
 	tf::TransformListener _listener;
+	ros::Subscriber _subTargetPoint;
 	
 
 };

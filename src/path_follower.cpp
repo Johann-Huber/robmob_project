@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 	ros::Publisher cmd_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 10); // pour déplacer le robot
 
 	tf::TransformListener listener;
-	
+
 	bool isGoalReached(false);
 	int endCpt(0);
 	int iPt2Reach(0); // indice point à atteindre
