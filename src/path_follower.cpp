@@ -177,141 +177,142 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "robmob_path_follower");
 	ros::NodeHandle n;
 
-
-	// **************************** Map initialization ****************************
+	// **************************** Initialization ****************************
 	
-	// Set the map
-	MapListener mapListner(n);
-	mapListner.listen(n);
-
-	// Create map
-	Map mapSim(mapListner, NAME_MAP_WIN);
-
-
-	// **************************** Find & display path ****************************
-	
-	// Create map tree
-	MapTree mapTree(mapSim);
-
-	// Display map
-	//mapSim.drawMapSrcDest(src, dest);
-
-	// Compute shortest path:
-	Pos src(mapSim.getPosRobot()), dest(mapSim.getPosTarget());
-	std::vector<Pos> sp = mapTree.computeShorestPath(src, dest); // pxl
-
-	// Display res :
-	//mapSim.drawMapShortestPath(sp); // without the graph
-
-	// Convert in meter
-	std::vector<MapPos> outputPath =  mapSim.convertOutputPath(sp);
-	
-   // Compute the trajectory interpolation
-	std::vector<MapPos> vPosInt = interpolationTrajectory(outputPath);
-	
-	// Set the gazebo path
-	nav_msgs::Path gazeboPath = setPath(vPosInt);
-	
-
-	// **************************** Robot Control ****************************
-	
-
 	ros::Publisher ptPub = n.advertise<geometry_msgs::PointStamped>("/point_to_reach", 10); // debug : affichage point à atteindre
 	ros::Publisher cmd_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 10); // pour déplacer le robot
-
+	ros::Publisher pathPub = n.advertise<nav_msgs::Path>("/shortest_path", 10);
+	
 	tf::TransformListener listener;
 
-	bool isGoalReached(false);
-	int endCpt(0);
-	int iPt2Reach(0); // indice point à atteindre
-	double lastErrAngle(0);
+	// Set the map
+	MapListener mapListner(n);
 
-	ros::Publisher pathPub = n.advertise<nav_msgs::Path>("/shortest_path", 10);
+	// **************************** Listening map ****************************
 
-	ros::Rate rate(30.0); // frequence de rafraichissement
-	std::cout << "Path following..." << std::endl;
-	while (n.ok())
+	while(n.ok())
 	{
-		// Affichage du path
-		pathPub.publish(gazeboPath); //displayPath(vPosInt); 
-	
-		// Lecture posture robot
-		tf::StampedTransform transform; 
-	
-		try{
-			listener.lookupTransform("/map", "/base_link",  
-							          	   ros::Time(0), transform);
-		}
-		catch (tf::TransformException &ex){
-			ROS_ERROR("%s",ex.what()); 
-			ros::Duration(1.0).sleep(); 
-			continue;
-		}
 
-		VectPosture vPosRob(transform);
+		mapListner.listen(n);
+
+		// Create map
+		Map mapSim(mapListner, NAME_MAP_WIN);
 
 
-		// Test passage au point suivant
-		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD && iPt2Reach < (vPosInt.size()-1)) 
-														// si on est proche du point à atteindre, et qu'on est pas au dernier point
+		// **************************** Find & display path ****************************
+		
+		// Create map tree
+		MapTree mapTree(mapSim);
+
+		// Display map
+		//mapSim.drawMapSrcDest(src, dest);
+
+		// Compute shortest path:
+		Pos src(mapSim.getPosRobot()), dest(mapSim.getPosTarget());
+		std::vector<Pos> sp = mapTree.computeShorestPath(src, dest); // pxl
+
+		// Display res :
+		//mapSim.drawMapShortestPath(sp); // without the graph
+
+		// Convert in meter
+		std::vector<MapPos> outputPath =  mapSim.convertOutputPath(sp);
+		
+		// Compute the trajectory interpolation
+		std::vector<MapPos> vPosInt = interpolationTrajectory(outputPath);
+		
+		// Set the gazebo path
+		nav_msgs::Path gazeboPath = setPath(vPosInt);
+		
+
+		// **************************** Robot Control ****************************
+		
+
+		int iPt2Reach(0); // indice point à atteindre
+		double lastErrAngle(0);
+
+
+
+		ros::Rate rate(30.0); // frequence de rafraichissement
+		std::cout << "Path following..." << std::endl;
+		while ( mapListner.isThereTarget() ) //(n.ok())
 		{
-			#ifdef DEBUG_PRINT
-			 std::cout << "------------------------------------Passage du point " << iPt2Reach << std::endl;
-			#endif
-			iPt2Reach++;
-		}
-
-		if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD_GOAL && iPt2Reach == (vPosInt.size()-1) && !isGoalReached)
-		{
-			isGoalReached = true;
-			std::cout << "Target reached." << std::endl;
-		}
-
-		// Affichage du point dans Rviz
-		ptPub.publish(stampedNextPoint(vPosInt[iPt2Reach]));
-
-
-		// Calcul du vecteur cible : entre le robot et le prochain point à atteindre :
-		MapPos vectToReach( vPosInt[iPt2Reach].x - vPosRob.x, vPosInt[iPt2Reach].y - vPosRob.y );
-
-		// Calcul angle vecteur cible		
-		double angle2Reach = std::acos( (vectToReach.x)*1.0/vectToReach.norm() ); //angle orienté v2reach,x0
-		if( vectToReach.y < 0  ) // produit vectoriel < 0 -> sin negatif
-			angle2Reach= -angle2Reach;
+			// Affichage du path
+			
+			pathPub.publish(gazeboPath); //displayPath(vPosInt); 
 		
+			// Lecture posture robot
+			tf::StampedTransform transform; 
+		
+			try{
+				listener.lookupTransform("/map", "/base_link",  
+									       	   ros::Time(0), transform);
+			}
+			catch (tf::TransformException &ex){
+				ROS_ERROR("%s",ex.what()); 
+				ros::Duration(1.0).sleep(); 
+				continue;
+			}
 
-	 	// Calcul erreurs
-	 	double errAngle = angle2Reach - vPosRob.yaw ;
-	 	if (errAngle > PI )
-	 	{ 
-	 		//std::cout << "TOO HIGH : err (avant) = " << errAngle << " err angle après : " << errAngle -2.0*PI << std::endl;
-	 		errAngle -= 2.0*PI;
-	 	}
-	 	if (errAngle < -PI )
-	 	{
-	 		//std::cout << "TOO LOW : err (avant) = " << errAngle << " err angle après : " << errAngle + 2.0*PI << std::endl;
-	 		errAngle += 2.0*PI;
-	   }
-		double errPos = vectToReach.norm();
-		
-		
-		
-		// Commande robot
-		/*
-		float kpv=0.5;
-		float kpw=1, kdw=0; //d indispensable pour le robot réel
-		*/
-		
-		geometry_msgs::Twist twist;
-		
-		if(isGoalReached) // fin de parcours
-		{
-			twist.linear.x = 0;
-			twist.angular.z = 0;
-			endCpt++;
-		}
-		else
-		{
+			VectPosture vPosRob(transform);
+
+
+			// Test passage au point suivant
+			if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD && iPt2Reach < (vPosInt.size()-1)) 
+															// si on est proche du point à atteindre, et qu'on est pas au dernier point
+			{
+				#ifdef DEBUG_PRINT
+				 std::cout << "------------------------------------Passage du point " << iPt2Reach << std::endl;
+				#endif
+				iPt2Reach++;
+			}
+
+			if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD_GOAL && iPt2Reach == (vPosInt.size()-1) &&
+					mapListner.isThereTarget())
+			{
+				mapListner.targetReached();
+				
+				std::cout << "Target reached." << std::endl;
+			}
+
+			// Affichage du point dans Rviz
+			ptPub.publish(stampedNextPoint(vPosInt[iPt2Reach]));
+
+
+			// Calcul du vecteur cible : entre le robot et le prochain point à atteindre :
+			MapPos vectToReach( vPosInt[iPt2Reach].x - vPosRob.x, vPosInt[iPt2Reach].y - vPosRob.y );
+
+			// Calcul angle vecteur cible		
+			double angle2Reach = std::acos( (vectToReach.x)*1.0/vectToReach.norm() ); //angle orienté v2reach,x0
+			if( vectToReach.y < 0  ) // produit vectoriel < 0 -> sin negatif
+				angle2Reach= -angle2Reach;
+			
+
+		 	// Calcul erreurs
+		 	double errAngle = angle2Reach - vPosRob.yaw ;
+		 	if (errAngle > PI )
+		 	{ 
+		 		//std::cout << "TOO HIGH : err (avant) = " << errAngle << " err angle après : " << errAngle -2.0*PI << std::endl;
+		 		errAngle -= 2.0*PI;
+		 	}
+		 	if (errAngle < -PI )
+		 	{
+		 		//std::cout << "TOO LOW : err (avant) = " << errAngle << " err angle après : " << errAngle + 2.0*PI << std::endl;
+		 		errAngle += 2.0*PI;
+			}
+			double errPos = vectToReach.norm();
+			
+			
+				// **************************** PID ****************************
+			
+			// Commande robot
+			/*
+			float kpv=0.5;
+			float kpw=1, kdw=0; //d indispensable pour le robot réel
+			*/
+			
+			geometry_msgs::Twist twist;
+			
+			
 			float kpv=0.5;
 			float kpw=0.7, kdw=0.2;
 			
@@ -327,20 +328,36 @@ int main(int argc, char **argv)
 			std::cout << "Pos : errPos = " << errPos << std::endl;
 			std::cout << "Cmd : v = " << twist.linear.x << ", w = " << twist.angular.z  << std::endl;
 			#endif
-		}
-		
-		cmd_pub.publish(twist);
-		
-		lastErrAngle = errAngle;
-      rate.sleep(); // gère le rafraîchissement
-      
-      if(endCpt == 200)
-      {
-      	std::cout << "Ending ..." << std::endl;
-      	return 0;
-      }
-  }
-
+			
+			
+			cmd_pub.publish(twist);
+			
+			lastErrAngle = errAngle;
+		   rate.sleep(); // gère le rafraîchissement
+		   
+		   /*if(endCpt == 120) // make sure robot is stopped
+		   {
+		   	std::cout << "Ending ..." << std::endl;
+		   	return 0;
+		   }*/
+	  	}
+	  
+	  	std::cout << "Ending ..." << std::endl;
+	  	for (int iEnd(0); iEnd < 120 ; iEnd++)
+	  	{
+	  		geometry_msgs::Twist twist;
+	  		twist.linear.x = 0;
+			twist.angular.z = 0;
+			
+			cmd_pub.publish(twist);
+			rate.sleep();
+	  	}
+	  
+	  	std::cout << "Ending ok. Another target could be selected." << std::endl;
+	  	
+	} // end while(n.ok())
+	
+	
   return 0;
 }
 

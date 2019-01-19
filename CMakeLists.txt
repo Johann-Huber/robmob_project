@@ -246,6 +246,13 @@ add_executable(robmob_path_follower src/path_follower.cpp)
 include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries(robmob_path_follower  ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} robmob_map_listener robmob_map robmob_map_tree)
 
+# scan_listener
+add_executable(scan_listener src/scan_listener.cpp)
+target_link_libraries(scan_listener ${catkin_LIBRARIES})
+
+# map_explorer
+add_executable(robmob_map_explorer src/map_explorer.cpp)
+target_link_libraries(robmob_map_explorer ${catkin_LIBRARIES})
 
 
 

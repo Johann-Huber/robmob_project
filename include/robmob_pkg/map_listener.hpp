@@ -34,11 +34,14 @@ public:
 	void showMap();
 	void dispData();
 	
+	void targetReached(){ _isThereTarget = false;}
+	
 	cv::Mat getImgOut(){ return _imgOut; }
 	MapInfo getMapInfo(){ return _mapInfo; }
 	MapPos getMapPosRobot(){ return _mpRobot; }
 	MapPos getMapPosTarget(){ return _mpTarget; }
 	bool isInit(){ return _isInit; }
+	bool isThereTarget(){ return _isThereTarget; }
 	
 	void targetPointCallback(const geometry_msgs::PointStamped::ConstPtr& target);
 	
