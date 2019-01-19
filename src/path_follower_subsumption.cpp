@@ -259,7 +259,9 @@ int main(int argc, char **argv)
 		int iPt2Reach(0); // indice point à atteindre
 		double lastErrAngle(0);
 		
-
+		// to avoid point-inside-obstacle block
+		int timeToReachPt(0); 
+		int const delayToReachPt = 100;
 
 		ros::Rate rate(30.0); // frequence de rafraichissement
 		std::cout << "Path following..." << std::endl;
@@ -293,6 +295,13 @@ int main(int argc, char **argv)
 				 std::cout << "------------------------------------Passage du point " << iPt2Reach << std::endl;
 				#endif
 				iPt2Reach++;
+				timeToReachPt = 0;
+			}
+			if(timeToReachPt >= delayToReachPt && iPt2Reach < (vPosInt.size()-1))
+			{
+				//std::cout << "-------Time is up : Going to the next point " << iPt2Reach << std::endl;
+				iPt2Reach++;
+				timeToReachPt = 0;
 			}
 
 			if( posErrorToPt(vPosRob, vPosInt[iPt2Reach]) < THRESHOLD_GOAL && iPt2Reach == (vPosInt.size()-1) &&
@@ -340,19 +349,19 @@ int main(int argc, char **argv)
 			*/		
 			
 			geometry_msgs::Twist twist;
-			std::cout << "r : " << rightSensor << " f : " << frontSensor << " l : " << leftSensor << std::endl;
+			//std::cout << "r : " << rightSensor << " f : " << frontSensor << " l : " << leftSensor << std::endl;
 			// **************************** Subsumption ****************************
 			if (frontSensor<0.5 ) // front obstacle
 			{
 				if ( rightSensor < leftSensor )
 				{
-					std::cout << "obstacle right side : turn left" << std::endl;
+					//std::cout << "obstacle right side : turn left" << std::endl;
 					twist.linear.x = 0;
 					twist.angular.z = ROBOT_SPEED_MAX;
 				}
 				else
 				{
-					std::cout << "obstacle left side : turn right" << std::endl;
+					//std::cout << "obstacle left side : turn right" << std::endl;
 					twist.linear.x = 0;
 					twist.angular.z = -ROBOT_SPEED_MAX;
 				}
@@ -361,7 +370,7 @@ int main(int argc, char **argv)
 			{
 				if( rightSensor <0.5 || leftSensor <0.5) // bordering obstacle
 				{
-					std::cout << "bordering obstacle : move forward" << std::endl;
+					//std::cout << "bordering obstacle : move forward" << std::endl;
 					twist.linear.x = ROBOT_SPEED_MAX;
 					twist.angular.z = 0;
 				}
@@ -389,6 +398,7 @@ int main(int argc, char **argv)
 			cmd_pub.publish(twist);
 			
 			lastErrAngle = errAngle;
+			timeToReachPt++;
 			
 			ros::spinOnce();
 		   rate.sleep(); // gère le rafraîchissement
