@@ -418,6 +418,26 @@ int main(int argc, char **argv)
 	  
 	  	std::cout << "Ending ok. Another target could be selected." << std::endl;
 	  	
+	  	bool isAnswered(false);
+	  	while(!isAnswered)
+	  	{
+		  	std::string answer;
+		  	std::cout << "Select another target ? (yes/no)" << std::endl;
+		  	std::cin >> answer;
+		  	if (answer == "no")
+		  	{
+		  		std::cout << "Shutting down node." << std::endl;
+		  		return 0;
+		  	}
+		  	else
+		  	{
+			  	if (answer == "yes")
+			  		isAnswered = true;
+			  	else
+			  		std::cout << "answer should be [yes] or [no]" << std::endl;
+			}
+	  	}
+	  	
 	} // end while(n.ok())
 	
 	
